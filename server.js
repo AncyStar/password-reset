@@ -5,9 +5,18 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const { sendResetEmail } = require("./sendEmail");
 const User = require("./model");
-
+const cors = require("cors");
 const app = express();
+
 app.use(express.json());
+
+app.use(
+  cors({
+    origin: "",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 
 // MongoDB Connection
 mongoose
