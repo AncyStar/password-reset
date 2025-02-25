@@ -3,6 +3,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const { sendResetEmail } = require("./sendEmail");
 const User = require("./model");
 const cors = require("cors");
@@ -12,7 +13,7 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: "",
+    origin: process.env.CLIENT_URL,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
@@ -24,25 +25,66 @@ mongoose
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.log(err));
 
-// Route to request password reset
+const JWT_SECRET = process.env.SECRET_KEY;
+
+// Signup Route
+app.post("/signup", async (req, res) => {
+  const { name, email, password } = req.body;
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser)
+      return res.status(400).json({ message: "User already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ name, email, password: hashedPassword });
+    await newUser.save();
+
+    res.status(201).json({ message: "User registered successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Error signing up user" });
+  }
+});
+
+// Login Route
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid credentials" });
+
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "1h" });
+    res.status(200).json({ message: "Login successful", token });
+  } catch (err) {
+    res.status(500).json({ message: "Error logging in user" });
+  }
+});
+
+// Forgot Password Route
 app.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
   if (!user) return res.status(404).json({ message: "User not found" });
 
-  // Generate token
   const token = crypto.randomBytes(32).toString("hex");
   user.resetToken = token;
   user.tokenExpiry = Date.now() + 3600000; // 1 hour expiry
   await user.save();
 
-  // Send email
   const resetLink = `${process.env.CLIENT_URL}/reset-password/${token}`;
-  await sendResetEmail(user.email, resetLink);
-  res.json({ message: "Password reset email sent" });
+  try {
+    await sendResetEmail(user.email, resetLink);
+    res.json({ message: "Password reset email sent" });
+  } catch (error) {
+    console.error("Failed to send email:", error);
+    res.status(500).json({ message: "Failed to send email. Try again later." });
+  }
 });
 
-// Route to handle password reset
+// Reset Password Route
 app.post("/reset-password/:token", async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
@@ -53,7 +95,6 @@ app.post("/reset-password/:token", async (req, res) => {
   if (!user)
     return res.status(400).json({ message: "Invalid or expired token" });
 
-  // Hash and save new password
   const hashedPassword = await bcrypt.hash(password, 10);
   user.password = hashedPassword;
   user.resetToken = undefined;
