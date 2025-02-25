@@ -99,6 +99,9 @@ app.post("/reset-password/:token", async (req, res) => {
   const { token } = req.params;
   const { newPassword } = req.body;
 
+  console.log("Received token:", token);
+  console.log("Received newPassword:", newPassword);
+
   if (!newPassword || newPassword.length < 6) {
     return res
       .status(400)
