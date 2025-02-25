@@ -1,32 +1,28 @@
 const nodemailer = require("nodemailer");
 
-const sendResetEmail = async (to, link) => {
+const sendResetEmail = async (email, resetLink) => {
   try {
-    // Configure transporter
-    const transporter = nodemailer.createTransport({
+    let transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER, // Your email from .env
-        pass: process.env.EMAIL_PASS, // Your app password from .env
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
     });
 
-    // Email options
-    const mailOptions = {
+    let mailOptions = {
       from: process.env.EMAIL_USER,
-      to: to,
-      subject: "Password Reset Link",
+      to: email,
+      subject: "Password Reset Request",
       html: `<p>You requested a password reset</p>
-             <p>Click this link to reset your password:</p>
-             <a href="${link}">${link}</a>`,
+             <p>Click this <a href="${resetLink}">link</a> to reset your password.</p>`,
     };
 
-    // Send email
     await transporter.sendMail(mailOptions);
-    console.log("Password reset email sent successfully");
+    console.log("Password reset email sent successfully!");
   } catch (error) {
-    console.error("Failed to send email:", error);
-    throw new Error("Failed to send email. Try again later.");
+    console.error("Error sending email:", error);
+    throw new Error("Unable to send password reset email.");
   }
 };
 
