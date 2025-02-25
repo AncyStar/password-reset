@@ -99,16 +99,21 @@ app.post("/reset-password/:token", async (req, res) => {
   const { token } = req.params;
   const { newPassword } = req.body;
 
+  if (!newPassword || newPassword.length < 6) {
+    return res
+      .status(400)
+      .json({ message: "Password must be at least 6 characters long" });
+  }
+
   const user = await User.findOne({
     resetToken: token,
-    resetTokenExpiry: { $gt: Date.now() }, // Check if token is not expired
+    resetTokenExpiry: { $gt: Date.now() },
   });
 
   if (!user) {
     return res.status(400).json({ message: "Invalid or expired token" });
   }
 
-  // Update password and clear token
   user.password = newPassword;
   user.resetToken = undefined;
   user.resetTokenExpiry = undefined;
