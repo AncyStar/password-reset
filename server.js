@@ -66,28 +66,31 @@ app.post("/login", async (req, res) => {
 // Forgot Password Route
 app.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
-  try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ message: "User not found" });
 
-    const token = crypto.randomBytes(32).toString("hex");
-    user.resetToken = token;
-    user.tokenExpiry = Date.now() + 3600000; // 1 hour expiry
-    await user.save();
+  // Generate token
+  const token = crypto.randomBytes(32).toString("hex");
 
-    const resetLink = `${process.env.CLIENT_URL}/reset-password/${token}`;
-    try {
-      await sendResetEmail(user.email, resetLink);
-      res.json({ message: "Password reset email sent" });
-    } catch (error) {
-      console.error("Failed to send email:", error);
-      res
-        .status(500)
-        .json({ message: "Failed to send email. Try again later." });
+  // Update token and expiry directly in the database
+  await User.updateOne(
+    { email },
+    {
+      $set: {
+        resetToken: token,
+        resetTokenExpiry: Date.now() + 3600000, // 1 hour expiry
+      },
     }
-  } catch (err) {
-    console.error("Error in forgot-password route:", err);
-    res.status(500).json({ message: "Error processing password reset" });
+  );
+
+  // Send email
+  const resetLink = `${process.env.CLIENT_URL}/reset-password/${token}`;
+  try {
+    await sendResetEmail(user.email, resetLink);
+    res.json({ message: "Password reset email sent" });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    res.status(500).json({ message: "Failed to send email. Try again later." });
   }
 });
 
