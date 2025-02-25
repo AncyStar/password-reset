@@ -97,21 +97,25 @@ app.post("/forgot-password", async (req, res) => {
 // Reset Password Route
 app.post("/reset-password/:token", async (req, res) => {
   const { token } = req.params;
-  const { password } = req.body;
+  const { newPassword } = req.body;
+
   const user = await User.findOne({
     resetToken: token,
-    tokenExpiry: { $gt: Date.now() },
+    resetTokenExpiry: { $gt: Date.now() }, // Check if token is not expired
   });
-  if (!user)
-    return res.status(400).json({ message: "Invalid or expired token" });
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  user.password = hashedPassword;
+  if (!user) {
+    return res.status(400).json({ message: "Invalid or expired token" });
+  }
+
+  // Update password and clear token
+  user.password = newPassword;
   user.resetToken = undefined;
-  user.tokenExpiry = undefined;
+  user.resetTokenExpiry = undefined;
+
   await user.save();
 
-  res.json({ message: "Password successfully updated" });
+  res.json({ message: "Password successfully reset!" });
 });
 
 const PORT = process.env.PORT || 5000;
