@@ -42,6 +42,7 @@ app.post("/signup", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({ email, password: hashedPassword });
     await newUser.save();
+    console.log("Signup request received:", req.body);
 
     console.log("User registered successfully:", newUser.email);
     res.status(201).json({ message: "User registered successfully" });
