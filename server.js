@@ -56,7 +56,7 @@ app.post("/login", async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
 
-    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign({ id: user._id }, SECRET_KEY, { expiresIn: "1h" });
     res.status(200).json({ message: "Login successful", token });
   } catch (err) {
     res.status(500).json({ message: "Error logging in user" });
@@ -99,8 +99,8 @@ app.post("/reset-password/:token", async (req, res) => {
   const { token } = req.params;
   const { newPassword } = req.body;
 
-  console.log("Received token:", token);
-  console.log("Received newPassword:", newPassword);
+  console.log("Received token:", req.params.token);
+  console.log("Received newPassword:", req.params.newPassword);
 
   if (!newPassword || newPassword.length < 6) {
     return res
@@ -116,10 +116,12 @@ app.post("/reset-password/:token", async (req, res) => {
   if (!user) {
     return res.status(400).json({ message: "Invalid or expired token" });
   }
-
-  user.password = newPassword;
-  user.resetToken = undefined;
-  user.resetTokenExpiry = undefined;
+  if (user.resetTokenExpiry && user.resetTokenExpiry < Date.now()) {
+    return res.status(400).json({ message: "Token expired" });
+  }
+  user.password = bcrypt.hashSync(newPassword, 10);
+  user.resetToken = null;
+  user.resetTokenExpiry = null;
 
   await user.save();
 
