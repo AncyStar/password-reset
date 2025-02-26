@@ -29,19 +29,27 @@ const JWT_SECRET = process.env.SECRET_KEY;
 
 // Signup Route
 app.post("/signup", async (req, res) => {
-  const { name, email, password } = req.body;
   try {
+    const { email, password } = req.body;
+    console.log("Registering user:", email);
+
     const existingUser = await User.findOne({ email });
-    if (existingUser)
+    if (existingUser) {
+      console.log("User already exists:", email);
       return res.status(400).json({ message: "User already exists" });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ name, email, password: hashedPassword });
+    const newUser = new User({ email, password: hashedPassword });
     await newUser.save();
 
+    console.log("User registered successfully:", newUser.email);
     res.status(201).json({ message: "User registered successfully" });
-  } catch (err) {
-    res.status(500).json({ message: "Error signing up user" });
+  } catch (error) {
+    console.error("Signup error:", error); // Logs the full error
+    res
+      .status(500)
+      .json({ message: "Error signing up user", error: error.message });
   }
 });
 
