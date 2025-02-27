@@ -100,33 +100,38 @@ app.post("/forgot-password", async (req, res) => {
 
 // Reset Password Route
 app.post("/reset-password", async (req, res) => {
-  const { token } = req.params;
-  const { newPassword } = req.body;
+  const { token, newPassword } = req.body;
 
-  console.log("Received token:", req.params.token);
-  console.log("Received newPassword:", req.params.newPassword);
+  console.log("Received token:", token);
+  console.log("Received newPassword:", newPassword);
 
-  if (!newPassword || newPassword.length < 6) {
+  if (!token || !newPassword) {
     return res
       .status(400)
-      .json({ message: "Password must be at least 6 characters long" });
+      .json({ message: "Token or password missing in request" });
   }
 
-  const user = await User.findOne({
-    resetToken: token,
-    resetTokenExpiry: { $gt: Date.now() },
-  });
+  // Check if token exists in DB
+  const user = await User.findOne({ resetToken: token });
 
   if (!user) {
+    console.log("Token not found in database.");
     return res.status(400).json({ message: "Invalid or expired token" });
   }
-  if (user.resetTokenExpiry && user.resetTokenExpiry < Date.now()) {
+
+  console.log("Stored token in DB:", user.resetToken);
+  console.log("Stored expiry time:", user.resetTokenExpiry);
+  console.log("Current time:", Date.now());
+
+  // Check token expiry
+  if (user.resetTokenExpiry < Date.now()) {
+    console.log("Token is expired!");
     return res.status(400).json({ message: "Token expired" });
   }
+
   user.password = bcrypt.hashSync(newPassword, 10);
   user.resetToken = null;
   user.resetTokenExpiry = null;
-
   await user.save();
 
   res.json({ message: "Password successfully reset!" });
