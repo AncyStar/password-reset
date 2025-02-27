@@ -107,7 +107,7 @@ app.post("/forgot-password", async (req, res) => {
 });
 
 // Reset Password Route
-app.post("/reset-password/:token", async (req, res) => {
+app.post("/reset-password", async (req, res) => {
   const { token } = req.params;
   const { newPassword } = req.body;
 
