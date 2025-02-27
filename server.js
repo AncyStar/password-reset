@@ -79,31 +79,23 @@ app.post("/login", async (req, res) => {
 app.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
+
   if (!user) return res.status(404).json({ message: "User not found" });
 
-  // Generate token
+  // Generate a token without { }
   const token = crypto.randomBytes(32).toString("hex");
 
-  // Update token and expiry directly in the database
-  await User.updateOne(
-    { email },
-    {
-      $set: {
-        resetToken: token,
-        resetTokenExpiry: Date.now() + 3600000, // 1 hour expiry
-      },
-    }
-  );
+  // Store token and expiry correctly
+  user.resetToken = token;
+  user.resetTokenExpiry = Date.now() + 3600000; // 1 hour expiry
+
+  await user.save(); // token is stored in MongoDB Atlas
 
   // Send email
   const resetLink = `${process.env.CLIENT_URL}/reset-password/${token}`;
-  try {
-    await sendResetEmail(user.email, resetLink);
-    res.json({ message: "Password reset email sent" });
-  } catch (error) {
-    console.error("Error sending email:", error);
-    res.status(500).json({ message: "Failed to send email. Try again later." });
-  }
+  await sendResetEmail(user.email, resetLink);
+
+  res.json({ message: "Password reset email sent" });
 });
 
 // Reset Password Route
